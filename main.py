@@ -28,7 +28,8 @@ def list_sources():
     sources = [
         ("china.macro", "ChinaMacroSource", "GDP, CPI, PPI, PMI, M2/M1"),
         ("china.gold", "ChinaGoldSource", "SGE Spot Benchmark (Au)"),
-        ("china.a_shares", "ChinaAShareSource", "A-Share daily (东方财富, WAF throttled)"),
+        ("china.a_shares", "ChinaAShareSource", "A-Share indices + stocks (AkShare, WAF risk)"),
+        ("china.a_daily", "ChinaADailySource", "A-Share daily OHLCV + industry (BaoStock, stable)"),
         ("usa.macro", "USMacroSource", "CPI, Core PCE, Non-farm, Unemployment, ISM, CB Confidence"),
         ("usa.treasury", "USTreasurySource", "US Treasury Index"),
         ("japan.macro", "JapanMacroSource", "CPI, Unemployment Rate, Bank Rate"),
@@ -51,6 +52,7 @@ def main():
     parser.add_argument("--viz-only", action="store_true", help="Visualize from DuckDB (China only)")
     parser.add_argument("--no-store", action="store_true", help="Fetch without saving to DuckDB")
     parser.add_argument("--list", action="store_true", help="List available data sources")
+    parser.add_argument("--show-all", action="store_true", help="Generate all country dashboards")
 
     args = parser.parse_args()
 
@@ -79,8 +81,12 @@ def main():
     if args.china:
         from pipeline.china.macro import ChinaMacroSource
         from pipeline.china.gold import ChinaGoldSource
+        from pipeline.china.a_shares import ChinaAShareSource
+        from pipeline.china.a_shares_daily import ChinaADailySource
         sources.append(("china", ChinaMacroSource()))
         sources.append(("china_gold", ChinaGoldSource()))
+        sources.append(("china_a_shares", ChinaAShareSource()))
+        sources.append(("china_a_daily", ChinaADailySource()))
     elif args.usa:
         from pipeline.usa.macro import USMacroSource
         from pipeline.usa.treasury import USTreasurySource
@@ -93,11 +99,15 @@ def main():
         # Default: all sources
         from pipeline.china.macro import ChinaMacroSource
         from pipeline.china.gold import ChinaGoldSource
+        from pipeline.china.a_shares import ChinaAShareSource
+        from pipeline.china.a_shares_daily import ChinaADailySource
         from pipeline.usa.macro import USMacroSource
         from pipeline.usa.treasury import USTreasurySource
         from pipeline.japan.macro import JapanMacroSource
         sources.append(("china", ChinaMacroSource()))
         sources.append(("china_gold", ChinaGoldSource()))
+        sources.append(("china_a_shares", ChinaAShareSource()))
+        sources.append(("china_a_daily", ChinaADailySource()))
         sources.append(("usa", USMacroSource()))
         sources.append(("usa_treasury", USTreasurySource()))
         sources.append(("japan", JapanMacroSource()))
@@ -115,10 +125,39 @@ def main():
             print(f"💾 Saving {prefix} data to DuckDB...")
             storage.save_all(data, prefix=f"{prefix}_")
 
-    # Print final summary
-    print(f"\n🎉 Done! v{VERSION}")
-    print(f"   Database: {DB_PATH}")
-    print(f"   Tables: {storage.list_tables()}")
+    if args.show_all:
+        from viz.multi_dashboard import save_all
+
+        print("🎨 Generating all country dashboards from DuckDB...\n")
+        tables = storage.list_tables()
+
+        # China
+        china_data = {}
+        for name in ["gdp", "cpi", "ppi", "pmi", "money_supply"]:
+            if f"china_{name}" in tables:
+                china_data[name] = storage.load_table(f"china_{name}")
+        gold_data = None
+        if "china_gold_sge_spot" in tables:
+            gold_data = storage.load_table("china_gold_sge_spot")
+
+        # USA
+        usa_data = {}
+        for name in ["cpi_yoy", "core_pce", "non_farm", "unemployment", "ism_mfg", "treasury_index"]:
+            if f"usa_{name}" in tables:
+                usa_data[name] = storage.load_table(f"usa_{name}")
+
+        # Japan
+        japan_data = {}
+        for name in ["cpi", "unemployment", "bank_rate"]:
+            if f"japan_{name}" in tables:
+                japan_data[name] = storage.load_table(f"japan_{name}")
+
+        save_all(OUTPUT_DIR, VERSION,
+                 china_data=china_data, gold_data=gold_data,
+                 usa_data=usa_data, japan_data=japan_data)
+
+        print(f"\n🎉 Dashboards saved to: {OUTPUT_DIR}")
+        return
 
 
 if __name__ == "__main__":
