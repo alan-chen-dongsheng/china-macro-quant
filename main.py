@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import DB_PATH, DASHBOARD_PNG, OUTPUT_DIR
+from config import DB_PATH, DASHBOARD_PNG, OUTPUT_DIR, MACRO_INDICATORS
 from pipeline.fetcher import ChinaMacroSource
 from pipeline.storage import MacroStorage
 from viz.dashboard import build_dashboard
@@ -57,7 +57,8 @@ def main():
 
     print(f"\n🎉 完成！")
     print(f"   静态图: {DASHBOARD_PNG}")
-    print(f"   交互图: {DASHBOARD_HTML}")
+    html_path = str(DASHBOARD_PNG).replace(".png", ".html")
+    print(f"   交互图: {html_path}")
 
 
 if __name__ == "__main__":
