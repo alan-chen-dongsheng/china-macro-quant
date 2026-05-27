@@ -129,12 +129,17 @@ def build_dashboard(data: dict[str, pd.DataFrame],
         """Place annotation at 95% width of subplot, right-aligned."""
         last_val = value_col.iloc[-1]
         fig.add_annotation(
-            x=0.95, y=last_val + y_offset,
+            x=0.92, y=last_val + y_offset,
             text=f"{label} {last_val:.1f}",
             showarrow=False,
-            font=dict(color=color, size=11),
+            font=dict(color=color, size=10),
             xref=x_domain_ref, yref=yref,
             xanchor="right", yanchor="middle",
+            # Semi-transparent white background for readability
+            bgcolor="rgba(255,255,255,0.85)",
+            bordercolor="rgba(200,200,200,0.6)",
+            borderwidth=1,
+            borderpad=3,
         )
 
     def _stack_labels(val1, val2, threshold, offset_base):
@@ -146,8 +151,10 @@ def build_dashboard(data: dict[str, pd.DataFrame],
             return half, -half
         return 0, 0
 
-    # Row 1: GDP YoY (secondary axis y2)
-    _label(gdp["gdp_yoy"], "GDP YoY", "#EF4444", "x domain", "y2")
+    # Row 1: GDP YoY (secondary axis y2) — offset up to avoid bar overlap
+    gdp_yoy_last = gdp["gdp_yoy"].iloc[-1]
+    _label(gdp["gdp_yoy"], "GDP YoY", "#EF4444", "x domain", "y2",
+           y_offset=gdp_yoy_last * 0.25 + 0.5)
 
     # Row 2: CPI & PPI (y3)
     cpi_last, ppi_last = cpi["cpi_yoy"].iloc[-1], ppi["ppi_yoy"].iloc[-1]
