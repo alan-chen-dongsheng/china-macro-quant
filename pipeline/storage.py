@@ -70,7 +70,7 @@ class MacroStorage:
             ORDER BY date
         """)
 
-        print(f"  📊 macro_wide 视图已创建 ({len(indicators)} indicators)")
+        print(f"  📊 macro_wide view created ({len(indicators)} indicators)")
         conn.close()
 
     def load_wide(self) -> pd.DataFrame:
