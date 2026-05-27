@@ -124,68 +124,58 @@ def build_dashboard(data: dict[str, pd.DataFrame],
 
     fig.update_yaxes(title_text="YoY (%)", row=4, col=1)
 
-    # ── Annotations: inline labels at data endpoints ──
-    def _label(value_col, label, color, x_domain_ref, yref, y_offset=0):
-        """Place annotation at 95% width of subplot, right-aligned."""
-        last_val = value_col.iloc[-1]
+    # ── Annotations: fixed-position labels, top-right of each subplot ──
+    # Place labels at fixed positions so they NEVER overlap with data or each other.
+    # Each label gets a dedicated row with a clean white background box.
+    def _fixed_label(label, color, xref, yref, x_pos, y_pos):
         fig.add_annotation(
-            x=0.92, y=last_val + y_offset,
-            text=f"{label} {last_val:.1f}",
+            x=x_pos, y=y_pos,
+            text=label,
             showarrow=False,
-            font=dict(color=color, size=10),
-            xref=x_domain_ref, yref=yref,
-            xanchor="right", yanchor="middle",
-            # Semi-transparent white background for readability
-            bgcolor="rgba(255,255,255,0.85)",
-            bordercolor="rgba(200,200,200,0.6)",
+            font=dict(color=color, size=10, family="monospace"),
+            xref=xref, yref=yref,
+            xanchor="right", yanchor="top",
+            bgcolor="rgba(255,255,255,0.95)",
+            bordercolor="rgba(180,180,180,0.5)",
             borderwidth=1,
-            borderpad=3,
+            borderpad=4,
         )
 
-    def _stack_labels(val1, val2, threshold, offset_base):
-        """Compute y_offsets to separate close labels.
-        Returns (offset_top, offset_bottom)."""
-        diff = abs(val1 - val2)
-        if diff < threshold:
-            half = max(offset_base, (threshold - diff) / 2)
-            return half, -half
-        return 0, 0
+    # Row 1: GDP YoY (y2)
+    gdp_yoy_val = gdp["gdp_yoy"].iloc[-1]
+    _fixed_label(f"GDP YoY  {gdp_yoy_val:.1f}%", "#EF4444", "x domain", "y2", 0.98, 0.95)
 
-    # Row 1: GDP YoY (secondary axis y2) — offset up to avoid bar overlap
-    gdp_yoy_last = gdp["gdp_yoy"].iloc[-1]
-    _label(gdp["gdp_yoy"], "GDP YoY", "#EF4444", "x domain", "y2",
-           y_offset=gdp_yoy_last * 0.25 + 0.5)
+    # Row 2: CPI & PPI (y3) — more vertical spacing
+    cpi_val = cpi["cpi_yoy"].iloc[-1]
+    ppi_val = ppi["ppi_yoy"].iloc[-1]
+    _fixed_label(f"CPI  {cpi_val:.1f}%", "#F59E0B", "x2 domain", "y3", 0.98, 0.93)
+    _fixed_label(f"PPI  {ppi_val:.1f}%", "#8B5CF6", "x2 domain", "y3", 0.98, 0.83)
 
-    # Row 2: CPI & PPI (y3)
-    cpi_last, ppi_last = cpi["cpi_yoy"].iloc[-1], ppi["ppi_yoy"].iloc[-1]
-    o1, o2 = _stack_labels(cpi_last, ppi_last, threshold=5, offset_base=0.8)
-    _label(cpi["cpi_yoy"], "CPI", "#F59E0B", "x2 domain", "y3", y_offset=o1)
-    _label(ppi["ppi_yoy"], "PPI", "#8B5CF6", "x2 domain", "y3", y_offset=o2)
+    # Row 3: PMI (y4) — more vertical spacing
+    mfg_val = pmi["pmi_manufacturing"].iloc[-1]
+    nmfg_val = pmi["pmi_non_manufacturing"].iloc[-1]
+    _fixed_label(f"Mfg PMI  {mfg_val:.1f}", "#10B981", "x3 domain", "y4", 0.98, 0.93)
+    _fixed_label(f"Non-Mfg PMI  {nmfg_val:.1f}", "#6366F1", "x3 domain", "y4", 0.98, 0.83)
 
-    # Row 3: PMI (y4)
-    mfg_last, nmfg_last = pmi["pmi_manufacturing"].iloc[-1], pmi["pmi_non_manufacturing"].iloc[-1]
-    o3, o4 = _stack_labels(mfg_last, nmfg_last, threshold=3, offset_base=0.5)
-    _label(pmi["pmi_manufacturing"], "Mfg PMI", "#10B981", "x3 domain", "y4", y_offset=o3)
-    _label(pmi["pmi_non_manufacturing"], "Non-Mfg PMI", "#6366F1", "x3 domain", "y4", y_offset=o4)
-
-    # Row 4: M2 & M1 (y5)
-    m2_last, m1_last = ms["m2_yoy"].iloc[-1], ms["m1_yoy"].iloc[-1]
-    o5, o6 = _stack_labels(m2_last, m1_last, threshold=5, offset_base=1.0)
-    _label(ms["m2_yoy"], "M2", "#06B6D4", "x4 domain", "y5", y_offset=o5)
-    _label(ms["m1_yoy"], "M1", "#EC4899", "x4 domain", "y5", y_offset=o6)
+    # Row 4: M2 & M1 (y5) — more vertical spacing
+    m2_val = ms["m2_yoy"].iloc[-1]
+    m1_val = ms["m1_yoy"].iloc[-1]
+    _fixed_label(f"M2  {m2_val:.1f}%", "#06B6D4", "x4 domain", "y5", 0.98, 0.93)
+    _fixed_label(f"M1  {m1_val:.1f}%", "#EC4899", "x4 domain", "y5", 0.98, 0.83)
 
     # ── Layout ──
     fig.update_layout(
-        height=1600,
+        height=1700,
         width=1100,
         title_text=f"China Macroeconomic Dashboard v{version}",
         title_font_size=22,
         title_x=0.5,
-        legend=dict(orientation="h", yanchor="bottom", y=1.0,
-                    xanchor="center", x=0.5, font=dict(size=11)),
+        legend=dict(orientation="h", yanchor="top", y=0.995,
+                    xanchor="center", x=0.5, font=dict(size=10)),
         hovermode="x unified",
         template="plotly_white",
         showlegend=True,
+        margin=dict(r=40, t=80),
     )
 
     for i in range(1, 5):
