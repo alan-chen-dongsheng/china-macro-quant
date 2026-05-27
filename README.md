@@ -46,13 +46,16 @@ python main.py --usa
 python main.py --japan
 ```
 
+### Generate all country dashboards (HTML + PNG)
+```bash
+python main.py --show-all
+# Output: output/dashboard_china.png, dashboard_usa.png, dashboard_japan.png
+```
+
 ### Visualize (China macro dashboard)
 ```bash
-# From DuckDB
+# From DuckDB (legacy single-panel)
 python main.py --viz-only
-
-# Fetch + visualize
-python main.py --china --no-store
 ```
 
 ### List available sources
@@ -87,7 +90,9 @@ china-macro-quant/
 │   └── korea/
 │       └── macro.py          # KoreaMacroSource (placeholder)
 ├── viz/
-│   └── dashboard.py          # 4-row China macro dashboard
+│   ├── dashboard.py          # 4-row China macro dashboard (legacy)
+│   └── multi_dashboard.py    # Multi-country dashboards (HTML + PNG)
+├── output/                    # Generated dashboards (HTML + PNG)
 ├── strategy/                  # (reserved)
 └── backtest/                  # (reserved)
 ```
@@ -97,10 +102,13 @@ china-macro-quant/
 - **OOP Data Sources**: `BaseDataSource` abstract class with `fetch_all()` interface
 - **Retry with backoff**: All AkShare calls use exponential retry for WAF throttling
 - **Country-prefixed tables**: `china_gdp`, `usa_cpi_yoy`, `japan_cpi`, etc.
-- **CLI routing**: `--china`, `--usa`, `--japan` flags for selective fetching
+- **Multi-country dashboards**: `--show-all` generates per-country HTML + PNG
+- **CLI routing**: `--china`, `--usa`, `--japan`, `--show-all` flags for selective workflows
 
 ## Notes
 
 - **A-Share throttling**: 东方财富 API has aggressive WAF. Use `--china` sparingly, cache results in DuckDB
+- **PNG export**: Requires `kaleido` (`uv pip install kaleido`). HTML export works without it.
+- **Gold chart**: SGE gold spot price (CNY/gram) available via `china_gold_sge_spot` table
 - **Korea**: AkShare has no Korean macro endpoints. Planned: FRED API integration
 - **US Treasury**: Limited endpoints in AkShare. For full yield curve, use `fredapi`
