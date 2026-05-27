@@ -125,30 +125,41 @@ def build_dashboard(data: dict[str, pd.DataFrame],
     fig.update_yaxes(title_text="YoY (%)", row=4, col=1)
 
     # ── Annotations: inline labels at data endpoints ──
-    def _label(date_col, value_col, label, color, xref, yref):
+    def _label(value_col, label, color, x_domain_ref, yref, y_offset=0):
+        """Place annotation at 95% width of subplot, right-aligned."""
+        last_val = value_col.iloc[-1]
         fig.add_annotation(
-            x=date_col.iloc[-1], y=value_col.iloc[-1],
-            text=f"{label} {value_col.iloc[-1]:.1f}",
+            x=0.95, y=last_val + y_offset,
+            text=f"{label} {last_val:.1f}",
             showarrow=False,
-            font=dict(color=color, size=12),
-            xshift=45, yshift=5,
-            xref=xref, yref=yref,
+            font=dict(color=color, size=11),
+            xref=x_domain_ref, yref=yref,
+            xanchor="right", yanchor="middle",
         )
 
-    # Row 1: GDP YoY (secondary axis)
-    _label(gdp["date"], gdp["gdp_yoy"], "GDP YoY", "#EF4444", "x", "y2")
+    # Row 1: GDP YoY (secondary axis y2)
+    _label(gdp["gdp_yoy"], "GDP YoY", "#EF4444", "x domain", "y2")
 
-    # Row 2: CPI & PPI
-    _label(cpi["date"], cpi["cpi_yoy"], "CPI", "#F59E0B", "x2", "y2")
-    _label(ppi["date"], ppi["ppi_yoy"], "PPI", "#8B5CF6", "x2", "y2")
+    # Row 2: CPI & PPI (y3) — stack if values are close
+    cpi_last, ppi_last = cpi["cpi_yoy"].iloc[-1], ppi["ppi_yoy"].iloc[-1]
+    _label(cpi["cpi_yoy"], "CPI", "#F59E0B", "x2 domain", "y3",
+           y_offset=0.3 if abs(cpi_last - ppi_last) < 3 else 0)
+    _label(ppi["ppi_yoy"], "PPI", "#8B5CF6", "x2 domain", "y3",
+           y_offset=-0.3 if abs(cpi_last - ppi_last) < 3 else 0)
 
-    # Row 3: PMI
-    _label(pmi["date"], pmi["pmi_manufacturing"], "Mfg PMI", "#10B981", "x3", "y3")
-    _label(pmi["date"], pmi["pmi_non_manufacturing"], "Non-Mfg PMI", "#6366F1", "x3", "y3")
+    # Row 3: PMI (y4)
+    mfg_last, nmfg_last = pmi["pmi_manufacturing"].iloc[-1], pmi["pmi_non_manufacturing"].iloc[-1]
+    _label(pmi["pmi_manufacturing"], "Mfg PMI", "#10B981", "x3 domain", "y4",
+           y_offset=0.3 if abs(mfg_last - nmfg_last) < 2 else 0)
+    _label(pmi["pmi_non_manufacturing"], "Non-Mfg PMI", "#6366F1", "x3 domain", "y4",
+           y_offset=-0.3 if abs(mfg_last - nmfg_last) < 2 else 0)
 
-    # Row 4: M2 & M1
-    _label(ms["date"], ms["m2_yoy"], "M2", "#06B6D4", "x4", "y4")
-    _label(ms["date"], ms["m1_yoy"], "M1", "#EC4899", "x4", "y4")
+    # Row 4: M2 & M1 (y5)
+    m2_last, m1_last = ms["m2_yoy"].iloc[-1], ms["m1_yoy"].iloc[-1]
+    _label(ms["m2_yoy"], "M2", "#06B6D4", "x4 domain", "y5",
+           y_offset=0.5 if abs(m2_last - m1_last) < 3 else 0)
+    _label(ms["m1_yoy"], "M1", "#EC4899", "x4 domain", "y5",
+           y_offset=-0.5 if abs(m2_last - m1_last) < 3 else 0)
 
     # ── Layout ──
     fig.update_layout(
