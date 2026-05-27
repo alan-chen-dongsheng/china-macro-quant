@@ -67,7 +67,7 @@ class ChinaMacroSource(BaseDataSource):
         """Fetch all macro indicators, return dict of DataFrames."""
         results: dict[str, pd.DataFrame] = {}
 
-        print("📊 正在获取宏观数据...")
+        print("📊 Fetching macro data...")
 
         print("  GDP...")
         results["gdp"] = self._fetch_gdp()
@@ -81,7 +81,7 @@ class ChinaMacroSource(BaseDataSource):
         print("  PMI...")
         results["pmi"] = self._fetch_pmi()
 
-        print("  货币供应量 (M2/M1/M0)...")
+        print("  Money Supply (M2/M1)...")
         results["money_supply"] = self._fetch_money_supply()
 
         return results
