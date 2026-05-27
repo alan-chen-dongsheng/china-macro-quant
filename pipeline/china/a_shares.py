@@ -1,7 +1,8 @@
 """China A-share market data source.
 
-Note: AkShare A-share API (东方财富) has aggressive WAF throttling.
-Use retry + caching. For bulk historical data, consider BaoStock fallback.
+Provides:
+- Major A-share indices (Shanghai, Shenzhen, CSI300, etc.) — AkShare `stock_zh_index_daily`
+- Representative individual stocks — AkShare `stock_zh_a_hist` (东方财富, WAF throttled)
 """
 
 import akshare as ak
@@ -11,29 +12,81 @@ from pipeline.base import BaseDataSource, retry
 
 
 class ChinaAShareSource(BaseDataSource):
-    """Fetches A-share daily data from AkShare (东方财富)."""
+    """Fetches A-share index and individual stock data from AkShare."""
 
     def __init__(self):
         super().__init__("china_ashares", "China A-Share Market Data")
-        # Major A-share indices / representative stocks
-        self.symbols = {
-            "000001": "SSE Composite Index (平安银行 as proxy)",
-            "600519": "Kweichow Moutai (蓝筹代表)",
-            "000858": "Wuliangye (消费代表)",
+
+        # Major A-share indices — low WAF risk, high macro value
+        self.index_symbols = {
+            "sh000001": "SSE Composite",
+            "sz399001": "SZSE Component",
+            "sz399006": "ChiNext Index",
+            "sh000300": "CSI 300",
+            "sh000016": "SSE 50",
+            "sh000905": "CSI 500",
         }
 
-    def fetch_all(self, start: str = "20200101", end: str = "20260501") -> dict[str, pd.DataFrame]:
+        # Representative individual stocks (optional, subject to WAF throttling)
+        self.stock_symbols = {
+            "000001": "Ping An Bank",
+            "600519": "Kweichow Moutai",
+            "000858": "Wuliangye",
+        }
+
+    def fetch_all(
+        self,
+        start: str = "20200101",
+        end: str = "20260601",
+        include_stocks: bool = False,
+    ) -> dict[str, pd.DataFrame]:
         results: dict[str, pd.DataFrame] = {}
 
         print("📊 Fetching China A-share data...")
 
-        for symbol, desc in self.symbols.items():
-            print(f"  {symbol} ({desc})...")
-            results[f"stock_{symbol}"] = self._fetch_daily(symbol, start, end)
+        # ── Indices (primary, WAF-friendly) ──
+        print("  📈 Indices:")
+        for symbol, desc in self.index_symbols.items():
+            print(f"    {symbol} ({desc})...")
+            key = f"index_{symbol}"
+            results[key] = self._fetch_index(symbol, start, end)
+
+        # ── Individual stocks (optional, WAF risk) ──
+        if include_stocks:
+            print("  📉 Stocks (东方财富, may throttle):")
+            for symbol, desc in self.stock_symbols.items():
+                print(f"    {symbol} ({desc})...")
+                key = f"stock_{symbol}"
+                results[key] = self._fetch_stock(symbol, start, end)
 
         return results
 
-    def _fetch_daily(self, symbol: str, start: str, end: str) -> pd.DataFrame:
+    # ── Index helpers ──
+
+    def _fetch_index(self, symbol: str, start: str, end: str) -> pd.DataFrame:
+        """Fetch index daily OHLCV via stock_zh_index_daily."""
+        df = retry(
+            ak.stock_zh_index_daily,
+            symbol=symbol,
+        )
+        df["date"] = pd.to_datetime(df["date"])
+        # Filter date range (API returns full history)
+        df = df[(df["date"] >= start) & (df["date"] <= end)]
+        df = df.rename(columns={
+            "date": "date",
+            "open": "open",
+            "high": "high",
+            "low": "low",
+            "close": "close",
+            "volume": "volume",
+        })
+        df["symbol"] = symbol
+        return df.sort_values("date").reset_index(drop=True)
+
+    # ── Stock helpers ──
+
+    def _fetch_stock(self, symbol: str, start: str, end: str) -> pd.DataFrame:
+        """Fetch individual stock daily data via stock_zh_a_hist."""
         df = retry(
             ak.stock_zh_a_hist,
             symbol=symbol, period="daily",
