@@ -42,7 +42,7 @@ def fetch_all_stocks_daily(
     ind_df = ind_df[ind_df["industry"] != ""]
     all_codes = ind_df["code"].tolist()
 
-    print(f"Fetching daily data for {len(all_codes)} stocks ({start_date} → {end_date})...")
+    print(f"Fetching daily data for {len(all_codes)} stocks ({start_date} → {end_date})...", flush=True)
 
     fields = "date,code,close,pctChg"
     all_rows: list[pd.DataFrame] = []
@@ -60,8 +60,8 @@ def fetch_all_stocks_daily(
         if not df.empty:
             all_rows.append(df)
 
-        if (i + 1) % 200 == 0:
-            print(f"  [{i+1}/{len(all_codes)}] {len(all_rows)} stocks with data so far...")
+        if (i + 1) % 500 == 0:
+            print(f"  [{i+1}/{len(all_codes)}] {len(all_rows)} stocks fetched...", flush=True)
 
         if i < len(all_codes) - 1:
             time.sleep(sleep_sec)
@@ -98,12 +98,12 @@ def main():
         end_dt = pd.Timestamp(end_date)
         lookback_start = (end_dt - timedelta(days=args.days * 3)).strftime("%Y-%m-%d")
 
-    print(f"Fetching daily data: {lookback_start} → {end_date}")
+    print(f"Fetching daily data: {lookback_start} → {end_date}", flush=True)
 
     df = fetch_all_stocks_daily(lookback_start, end_date, args.sleep)
 
     if df.empty:
-        print("No data fetched.")
+        print("No data fetched.", flush=True)
         return
 
     # Save to DuckDB
@@ -112,7 +112,7 @@ def main():
     count = db.execute("SELECT COUNT(*) FROM china_a_full_daily").fetchone()[0]
     db.close()
 
-    print(f"\n✅ Saved {count} rows to china_a_full_daily")
+    print(f"\n✅ Saved {count} rows to china_a_full_daily", flush=True)
 
 
 if __name__ == "__main__":
